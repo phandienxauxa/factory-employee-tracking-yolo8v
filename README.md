@@ -16,13 +16,19 @@ Video gốc trước khi chạy hệ thống tracking:
 
 ### After Tracking
 
-Đặt video kết quả sau khi chạy tracking tại đây khi đã export ra file:
+Chạy tracking và lưu video kết quả ra file:
 
-```text
-demo_after_tracking.mp4
+```powershell
+python yolo_tracking.py --video demo.mp4 --model best_openvino_model --output-video demo_after_tracking.mp4
 ```
 
-Sau khi có file kết quả, thêm vào repo và thay link bên dưới:
+Nếu chỉ muốn render video, không mở cửa sổ OpenCV:
+
+```powershell
+python yolo_tracking.py --video demo.mp4 --model best_openvino_model --output-video demo_after_tracking.mp4 --no-display
+```
+
+Video kết quả:
 
 [Mở demo_after_tracking.mp4](./demo_after_tracking.mp4)
 
@@ -35,6 +41,7 @@ Sau khi có file kết quả, thêm vào repo và thay link bên dưới:
 - Gán mỗi vùng với một nhân sự/khu vực cụ thể.
 - Theo dõi trạng thái `OUT`, `ENTERING`, `WORK`, `AWAY`, `RETURNING`, `RETURNED`.
 - Ghi log sự kiện rời vị trí và quay lại vào `history.csv`.
+- Lưu video tracking đã vẽ bounding box, zone và trạng thái ra `demo_after_tracking.mp4`.
 - Hỗ trợ chạy model YOLO export sang OpenVINO để tối ưu inference local.
 
 ## Công Nghệ
@@ -59,6 +66,7 @@ factory-employee-tracking-yolo8v/
 ├── extract_frame.py          # Cắt frame từ video để tạo dữ liệu train
 ├── export_openvino.py        # Export YOLO .pt sang OpenVINO
 ├── demo.mp4                  # Video demo gốc
+├── demo_after_tracking.mp4   # Video kết quả sau tracking, tạo bằng --output-video
 ├── requirements.txt
 └── README.md
 ```
@@ -77,7 +85,7 @@ frames/
 *_openvino_model/
 ```
 
-`demo.mp4` không còn bị ignore để có thể hiển thị trực tiếp trên GitHub. Nếu có video kết quả dung lượng hợp lý, bạn có thể commit thêm `demo_after_tracking.mp4`.
+`demo.mp4` và `demo_after_tracking.mp4` không bị ignore để có thể hiển thị trực tiếp trên GitHub.
 
 ## Cài Đặt
 
@@ -147,6 +155,12 @@ Chạy theo cấu hình mặc định:
 python yolo_tracking.py
 ```
 
+Mặc định chương trình lưu video đã annotate vào:
+
+```text
+demo_after_tracking.mp4
+```
+
 Chỉ định video và model:
 
 ```powershell
@@ -157,6 +171,24 @@ Lệnh gợi ý cho model OpenVINO input size 640:
 
 ```powershell
 python yolo_tracking.py --video demo.mp4 --model best_openvino_model --conf 0.35 --imgsz 640 --frame-skip 1
+```
+
+Chỉ định nơi lưu video output:
+
+```powershell
+python yolo_tracking.py --video demo.mp4 --model best_openvino_model --output-video demo_after_tracking.mp4
+```
+
+Tắt lưu video:
+
+```powershell
+python yolo_tracking.py --no-save-video
+```
+
+Render video không mở cửa sổ preview:
+
+```powershell
+python yolo_tracking.py --output-video demo_after_tracking.mp4 --no-display
 ```
 
 Chỉ định tracker:
@@ -276,8 +308,6 @@ git status --short
 
 ## Roadmap
 
-- Xuất video kết quả sau tracking ra `demo_after_tracking.mp4`.
-- Thêm tùy chọn lưu video output từ `yolo_tracking.py`.
 - Tách state machine tracking thành module riêng để dễ test.
 - Thêm unit test cho `zone_loader.py`.
 - Thêm Dockerfile hoặc script setup môi trường.

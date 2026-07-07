@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent
 class AppConfig:
     yolo_model_path: Path = BASE_DIR / "best_openvino_model"
     yolo_video_path: Path = BASE_DIR / "demo.mp4"
+    yolo_output_video_path: Path = BASE_DIR / "demo_after_tracking.mp4"
     yolo_log_file: Path = BASE_DIR / "history.csv"
     yolo_max_out_time: float = 5.0
     yolo_work_confirm_time: float = 3.0

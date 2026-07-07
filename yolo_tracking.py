@@ -32,6 +32,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="YOLO zone-based work monitoring")
     parser.add_argument("--video", default=str(CONFIG.yolo_video_path), help="Path to input video")
     parser.add_argument("--model", default=str(CONFIG.yolo_model_path), help="YOLO/OpenVINO model path")
+    parser.add_argument("--output-video", default=str(CONFIG.yolo_output_video_path), help="Path to save annotated tracking video")
+    parser.add_argument("--no-save-video", action="store_true", help="Disable saving annotated tracking video")
+    parser.add_argument("--no-display", action="store_true", help="Run without opening the OpenCV preview window")
     parser.add_argument("--log-file", default=str(CONFIG.yolo_log_file), help="CSV log path")
     parser.add_argument("--conf", type=float, default=CONFIG.yolo_confidence, help="Detection confidence threshold")
     parser.add_argument("--iou", type=float, default=CONFIG.yolo_iou, help="NMS IoU threshold")
@@ -227,6 +230,33 @@ def draw_ignored_person(frame, track_id, x1, y1, x2, y2):
     )
 
 
+def create_video_writer(output_video, input_video, fps, frame_width, frame_height, frame_skip):
+    if not output_video:
+        return None
+
+    output_path = Path(output_video)
+    input_path = Path(input_video)
+
+    try:
+        if output_path.resolve() == input_path.resolve():
+            print("Khong luu output video vi duong dan trung voi video input.")
+            return None
+    except OSError:
+        pass
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_fps = max(fps / max(frame_skip, 1), 1)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    writer = cv2.VideoWriter(str(output_path), fourcc, output_fps, (frame_width, frame_height))
+
+    if not writer.isOpened():
+        print(f"Khong tao duoc file video output: {output_path}")
+        return None
+
+    print(f"Se luu video ket qua vao: {output_path}")
+    return writer
+
+
 def main():
     args = parse_args()
     ensure_log_file(args.log_file)
@@ -259,196 +289,219 @@ def main():
     track_last_seen = {}
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     time_per_processed_frame = max(args.frame_skip, 1) / fps
     frame_count = 0
     window_name = "yolo multi zone monitoring"
+    video_writer = None
 
-    print("Dang giam sat cac khu vuc, nhan q de thoat")
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(window_name, CONFIG.display_window_width, CONFIG.display_window_height)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        frame_count += 1
-        if frame_count % max(args.frame_skip, 1) != 0:
-            continue
-
-        results = model.track(
-            frame,
-            persist=True,
-            classes=0,
-            conf=args.conf,
-            iou=args.iou,
-            imgsz=args.imgsz,
-            tracker=args.tracker,
-            verbose=False,
+    if not args.no_save_video:
+        video_writer = create_video_writer(
+            args.output_video,
+            args.video,
+            fps,
+            frame_width,
+            frame_height,
+            args.frame_skip,
         )
 
-        current_time = datetime.now()
+    print("Dang giam sat cac khu vuc, nhan q de thoat")
+    if not args.no_display:
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(window_name, CONFIG.display_window_width, CONFIG.display_window_height)
 
-        if results[0].boxes.id is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
-            ids = results[0].boxes.id.cpu().numpy().astype(int)
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-            for box, track_id in zip(boxes, ids):
-                x1, y1, x2, y2 = box
-                track_last_seen[track_id] = current_time
+            frame_count += 1
+            if frame_count % max(args.frame_skip, 1) != 0:
+                continue
 
-                zone_id, zone = get_zone_for_person(x1, y1, x2, y2, work_zones)
-                is_inside_zone = zone is not None
+            results = model.track(
+                frame,
+                persist=True,
+                classes=0,
+                conf=args.conf,
+                iou=args.iou,
+                imgsz=args.imgsz,
+                tracker=args.tracker,
+                verbose=False,
+            )
 
-                if not is_valid_person_box(x1, y1, x2, y2) and not is_inside_zone:
-                    draw_ignored_person(frame, track_id, x1, y1, x2, y2)
-                    continue
+            current_time = datetime.now()
 
-                assign_track_to_zone(
-                    track_id,
-                    zone_id,
-                    zone,
-                    current_time,
-                    track_zone_start_time,
-                    track_assigned_employee,
-                    zone_current_track,
-                )
+            if results[0].boxes.id is not None:
+                boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                ids = results[0].boxes.id.cpu().numpy().astype(int)
 
-                assigned = track_assigned_employee.get(track_id)
-                base_label = get_identity_label(track_id, assigned, zone)
-                status_text = "Unknown"
-                box_color = (0, 165, 255)
+                for box, track_id in zip(boxes, ids):
+                    x1, y1, x2, y2 = box
+                    track_last_seen[track_id] = current_time
 
-                if is_inside_zone:
-                    person_out_display_time[track_id] = 0.0
+                    zone_id, zone = get_zone_for_person(x1, y1, x2, y2, work_zones)
+                    is_inside_zone = zone is not None
 
-                    if has_logged_away.get(track_id, False):
-                        person_return_time[track_id] = person_return_time.get(track_id, 0.0) + time_per_processed_frame
+                    if not is_valid_person_box(x1, y1, x2, y2) and not is_inside_zone:
+                        draw_ignored_person(frame, track_id, x1, y1, x2, y2)
+                        continue
 
-                        if person_return_time[track_id] >= args.return_confirm_time:
-                            append_log(
-                                args.log_file,
-                                track_id,
-                                "da_quay_lai",
-                                round(person_out_time.get(track_id, 0.0), 1),
-                                assigned,
-                            )
-                            has_logged_away[track_id] = False
+                    assign_track_to_zone(
+                        track_id,
+                        zone_id,
+                        zone,
+                        current_time,
+                        track_zone_start_time,
+                        track_assigned_employee,
+                        zone_current_track,
+                    )
+
+                    assigned = track_assigned_employee.get(track_id)
+                    base_label = get_identity_label(track_id, assigned, zone)
+                    status_text = "Unknown"
+                    box_color = (0, 165, 255)
+
+                    if is_inside_zone:
+                        person_out_display_time[track_id] = 0.0
+
+                        if has_logged_away.get(track_id, False):
+                            person_return_time[track_id] = person_return_time.get(track_id, 0.0) + time_per_processed_frame
+
+                            if person_return_time[track_id] >= args.return_confirm_time:
+                                append_log(
+                                    args.log_file,
+                                    track_id,
+                                    "da_quay_lai",
+                                    round(person_out_time.get(track_id, 0.0), 1),
+                                    assigned,
+                                )
+                                has_logged_away[track_id] = False
+                                is_confirmed_working[track_id] = True
+                                person_return_time[track_id] = 0.0
+                                person_out_time[track_id] = 0.0
+                                status_text = "RETURNED"
+                                box_color = (0, 255, 0)
+                            else:
+                                status_text = "RETURNING"
+                                box_color = (0, 255, 255)
+                                cv2.putText(
+                                    frame,
+                                    f"return: {person_return_time[track_id]:.1f}/{args.return_confirm_time:.1f}s",
+                                    (x1, y1 - 30),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    TIMER_FONT_SCALE,
+                                    box_color,
+                                    1,
+                                )
+                        elif assigned is not None:
                             is_confirmed_working[track_id] = True
-                            person_return_time[track_id] = 0.0
                             person_out_time[track_id] = 0.0
-                            status_text = "RETURNED"
+                            person_return_time[track_id] = 0.0
+                            person_time[track_id] = person_time.get(track_id, 0.0) + time_per_processed_frame
+                            status_text = "WORK"
                             box_color = (0, 255, 0)
                         else:
-                            status_text = "RETURNING"
+                            waiting = track_zone_start_time.get(track_id)
+                            wait_seconds = 0.0
+                            if waiting is not None:
+                                wait_seconds = (current_time - waiting["start_time"]).total_seconds()
+
+                            status_text = "ENTERING"
                             box_color = (0, 255, 255)
                             cv2.putText(
                                 frame,
-                                f"return: {person_return_time[track_id]:.1f}/{args.return_confirm_time:.1f}s",
+                                f"wait: {wait_seconds:.1f}/{CONFIG.yolo_zone_assign_seconds:.1f}s",
                                 (x1, y1 - 30),
                                 cv2.FONT_HERSHEY_SIMPLEX,
                                 TIMER_FONT_SCALE,
                                 box_color,
                                 1,
                             )
-                    elif assigned is not None:
-                        is_confirmed_working[track_id] = True
-                        person_out_time[track_id] = 0.0
-                        person_return_time[track_id] = 0.0
-                        person_time[track_id] = person_time.get(track_id, 0.0) + time_per_processed_frame
-                        status_text = "WORK"
-                        box_color = (0, 255, 0)
-                    else:
-                        waiting = track_zone_start_time.get(track_id)
-                        wait_seconds = 0.0
-                        if waiting is not None:
-                            wait_seconds = (current_time - waiting["start_time"]).total_seconds()
 
-                        status_text = "ENTERING"
-                        box_color = (0, 255, 255)
                         cv2.putText(
                             frame,
-                            f"wait: {wait_seconds:.1f}/{CONFIG.yolo_zone_assign_seconds:.1f}s",
-                            (x1, y1 - 30),
+                            f"work: {person_time.get(track_id, 0.0):.1f}s",
+                            (x1, y1 - 15),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             TIMER_FONT_SCALE,
                             box_color,
                             1,
                         )
+                    else:
+                        track_zone_start_time.pop(track_id, None)
+                        person_return_time[track_id] = 0.0
+                        person_out_display_time[track_id] = person_out_display_time.get(track_id, 0.0) + time_per_processed_frame
 
+                        if is_confirmed_working.get(track_id, False) or has_logged_away.get(track_id, False):
+                            person_out_time[track_id] = person_out_time.get(track_id, 0.0) + time_per_processed_frame
+                        else:
+                            person_out_time[track_id] = 0.0
+
+                        out_spent = person_out_time[track_id]
+                        if has_logged_away.get(track_id, False) or (
+                            is_confirmed_working.get(track_id, False) and out_spent > args.max_out_time
+                        ):
+                            if not has_logged_away.get(track_id, False):
+                                append_log(args.log_file, track_id, "roi_khoi_vi_tri", assigned=assigned)
+                                has_logged_away[track_id] = True
+                                is_confirmed_working[track_id] = False
+
+                            status_text = "AWAY"
+                            box_color = (0, 0, 255)
+                            cv2.putText(
+                                frame,
+                                f"WARNING: {out_spent:.1f}s",
+                                (x1, y1 - 15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                TIMER_FONT_SCALE,
+                                box_color,
+                                1,
+                            )
+                        else:
+                            status_text = "OUT"
+                            box_color = (0, 165, 255)
+                            cv2.putText(
+                                frame,
+                                f"out: {person_out_display_time[track_id]:.1f}s",
+                                (x1, y1 - 15),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                TIMER_FONT_SCALE,
+                                box_color,
+                                1,
+                            )
+
+                    label = f"{base_label} - {status_text}"
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
                     cv2.putText(
                         frame,
-                        f"work: {person_time.get(track_id, 0.0):.1f}s",
-                        (x1, y1 - 15),
+                        label,
+                        (x1, y1 - 2),
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        TIMER_FONT_SCALE,
+                        TRACK_FONT_SCALE,
                         box_color,
                         1,
                     )
-                else:
-                    track_zone_start_time.pop(track_id, None)
-                    person_return_time[track_id] = 0.0
-                    person_out_display_time[track_id] = person_out_display_time.get(track_id, 0.0) + time_per_processed_frame
 
-                    if is_confirmed_working.get(track_id, False) or has_logged_away.get(track_id, False):
-                        person_out_time[track_id] = person_out_time.get(track_id, 0.0) + time_per_processed_frame
-                    else:
-                        person_out_time[track_id] = 0.0
+            release_stale_zone_assignments(track_last_seen, track_assigned_employee, zone_current_track)
+            draw_work_zones(frame, work_zones)
 
-                    out_spent = person_out_time[track_id]
-                    if has_logged_away.get(track_id, False) or (
-                        is_confirmed_working.get(track_id, False) and out_spent > args.max_out_time
-                    ):
-                        if not has_logged_away.get(track_id, False):
-                            append_log(args.log_file, track_id, "roi_khoi_vi_tri", assigned=assigned)
-                            has_logged_away[track_id] = True
-                            is_confirmed_working[track_id] = False
+            if video_writer is not None:
+                video_writer.write(frame)
 
-                        status_text = "AWAY"
-                        box_color = (0, 0, 255)
-                        cv2.putText(
-                            frame,
-                            f"WARNING: {out_spent:.1f}s",
-                            (x1, y1 - 15),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            TIMER_FONT_SCALE,
-                            box_color,
-                            1,
-                        )
-                    else:
-                        status_text = "OUT"
-                        box_color = (0, 165, 255)
-                        cv2.putText(
-                            frame,
-                            f"out: {person_out_display_time[track_id]:.1f}s",
-                            (x1, y1 - 15),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            TIMER_FONT_SCALE,
-                            box_color,
-                            1,
-                        )
-
-                label = f"{base_label} - {status_text}"
-                cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
-                cv2.putText(
-                    frame,
-                    label,
-                    (x1, y1 - 2),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    TRACK_FONT_SCALE,
-                    box_color,
-                    1,
-                )
-
-        release_stale_zone_assignments(track_last_seen, track_assigned_employee, zone_current_track)
-        draw_work_zones(frame, work_zones)
-
-        cv2.imshow(window_name, frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+            if not args.no_display:
+                cv2.imshow(window_name, frame)
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+    finally:
+        cap.release()
+        if video_writer is not None:
+            video_writer.release()
+            print(f"Da luu video ket qua: {args.output_video}")
+        if not args.no_display:
+            cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
