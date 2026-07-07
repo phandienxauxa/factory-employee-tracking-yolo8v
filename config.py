@@ -7,17 +7,6 @@ BASE_DIR = Path(__file__).resolve().parent
 
 @dataclass(frozen=True)
 class AppConfig:
-    dataset_dir: Path = BASE_DIR / "dataset"
-    face_database_file: Path = BASE_DIR / "face_database.pkl"
-    database_file: Path = BASE_DIR / "database.db"
-    attendance_capture_dir: Path = BASE_DIR / "captures" / "attendance"
-    camera_index: int = 0
-    face_threshold: float = 0.45
-    cooldown_seconds: int = 10
-    min_seconds_between_checkin_checkout: int = 30
-    insightface_model_name: str = "buffalo_l"
-    insightface_det_size: tuple[int, int] = (640, 640)
-    insightface_providers: tuple[str, ...] = ("CPUExecutionProvider",)
     yolo_model_path: Path = BASE_DIR / "best_openvino_model"
     yolo_video_path: Path = BASE_DIR / "demo.mp4"
     yolo_log_file: Path = BASE_DIR / "history.csv"

@@ -11,6 +11,5 @@ history.csv
 captures/
 dataset/
 frames/
-*.mp4
 *.pt
 *_openvino_model/
