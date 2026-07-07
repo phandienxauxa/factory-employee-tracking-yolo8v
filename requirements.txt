@@ -1,0 +1,8 @@
+opencv-python
+insightface
+onnxruntime
+numpy
+pandas
+streamlit
+ultralytics
+openvino

@@ -1,0 +1,80 @@
+{
+  "zones": [
+    {
+      "zone_id": "zone_1",
+      "zone_name": "Ban 001",
+      "employee_code": "NV001",
+      "employee_name": "DucThien",
+      "points": [
+        [
+          282,
+          263
+        ],
+        [
+          366,
+          197
+        ],
+        [
+          499,
+          292
+        ],
+        [
+          473,
+          334
+        ],
+        [
+          353,
+          335
+        ]
+      ]
+    },
+    {
+      "zone_id": "zone_2",
+      "zone_name": "Ban 002",
+      "employee_code": "NV002",
+      "employee_name": "DangTao",
+      "points": [
+        [
+          133,
+          74
+        ],
+        [
+          166,
+          115
+        ],
+        [
+          262,
+          85
+        ],
+        [
+          220,
+          50
+        ]
+      ]
+    },
+    {
+      "zone_id": "zone_3",
+      "zone_name": "Ban 003",
+      "employee_code": "NV003",
+      "employee_name": "ThanhSon",
+      "points": [
+        [
+          277,
+          71
+        ],
+        [
+          315,
+          95
+        ],
+        [
+          363,
+          81
+        ],
+        [
+          317,
+          58
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.py[cod]
+.env
+
+database.db
+face_database.pkl
+attendance_logs.csv
+history.csv
+
+captures/
+dataset/
+frames/
+*.mp4
+*.pt
+*_openvino_model/
