@@ -49,7 +49,7 @@ python yolo_tracking.py --video demo.mp4 --model best_openvino_model --output-vi
 
 Video kết quả:
 
-<video src="https://github.com/user-attachments/assets/6efe8a59-b3ad-4c34-9e1f-4382643b426d" controls width="100%"></video>
+<video src="https://github.com/user-attachments/assets/4a683e40-a188-4d45-89ae-d763149aaf9b" controls width="100%"></video>
 
 ---
 
