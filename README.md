@@ -22,6 +22,22 @@ Repo này tập trung vào demo chạy local, phù hợp để nghiên cứu pip
 - Vẽ và lưu vùng làm việc bằng công cụ OpenCV `zone_editor.py`.
 - Ghi log nhân sự rời vị trí và quay lại vào `history.csv`.
 
+## Demo Thành Phẩm
+
+Video demo không được commit trực tiếp vào repo vì file `.mp4` thường nặng và đã được ignore trong `.gitignore`. Khi cần trình bày thành phẩm trên GitHub, hãy upload video lên **GitHub Releases**, Google Drive, YouTube unlisted hoặc một nơi lưu trữ tương tự, sau đó thay các link bên dưới.
+
+| Giai đoạn | Mô tả | Video |
+| --- | --- | --- |
+| Before Tracking | Video gốc trước khi chạy YOLO work-zone monitoring. | [Xem video demo.mp4](https://github.com/phandienxauxa/factory-employee-tracking-yolo8v/releases) |
+| After Tracking | Video sau khi hệ thống đã tracking người, vẽ bounding box, gán vùng làm việc và ghi nhận trạng thái. | [Xem video kết quả](https://github.com/phandienxauxa/factory-employee-tracking-yolo8v/releases) |
+
+Gợi ý đặt tên asset khi upload lên GitHub Releases:
+
+```text
+demo_before_tracking.mp4
+demo_after_tracking.mp4
+```
+
 ## Công Nghệ
 
 - Python 3.10+
